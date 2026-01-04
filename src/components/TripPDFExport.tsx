@@ -92,31 +92,40 @@ export function TripPDFExport({ posts, onClose }: TripPDFExportProps) {
             </div>
 
             {/* Images - Each on its own page */}
-            {post.imageUrls && post.imageUrls.length > 0 && (
-              <div className="space-y-0">
-                {post.imageUrls.map((imageUrl, imgIndex) => (
-                  <div
-                    key={imgIndex}
-                    className={`flex flex-col items-center justify-center ${imgIndex < post.imageUrls!.length - 1 ? 'break-after-page' : ''}`}
-                    style={{ minHeight: imgIndex > 0 ? '100vh' : 'auto' }}
-                  >
-                    <div className="max-w-full">
-                      <img
-                        src={imageUrl}
-                        alt={`Photo ${imgIndex + 1} from ${post.location}`}
-                        className="w-full h-auto max-h-[85vh] object-contain mx-auto"
-                        onError={(e) => {
-                          e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect width="400" height="300" fill="%23e2e8f0"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%2394a3b8"%3EImage unavailable%3C/text%3E%3C/svg%3E';
-                        }}
-                      />
-                      <p className="text-sm text-slate-600 mt-4 text-center">
-                        {post.location} - Photo {imgIndex + 1} of {post.imageUrls!.length}
-                      </p>
+            {(() => {
+              // Normalize images to handle both legacy single image and new multiple images
+              const images = post.imageUrls && post.imageUrls.length > 0
+                ? post.imageUrls
+                : (post.imageUrl ? [post.imageUrl] : []);
+
+              if (images.length === 0) return null;
+
+              return (
+                <div className="space-y-0">
+                  {images.map((imageUrl, imgIndex) => (
+                    <div
+                      key={imgIndex}
+                      className="flex flex-col items-center justify-center break-after-page"
+                      style={{ minHeight: '100vh' }}
+                    >
+                      <div className="max-w-full">
+                        <img
+                          src={imageUrl}
+                          alt={`Photo ${imgIndex + 1} from ${post.location}`}
+                          className="w-full h-auto max-h-[85vh] object-contain mx-auto"
+                          onError={(e) => {
+                            e.currentTarget.src = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="400" height="300"%3E%3Crect width="400" height="300" fill="%23e2e8f0"/%3E%3Ctext x="50%25" y="50%25" text-anchor="middle" dy=".3em" fill="%2394a3b8"%3EImage unavailable%3C/text%3E%3C/svg%3E';
+                          }}
+                        />
+                        <p className="text-sm text-slate-600 mt-4 text-center">
+                          {post.location} - Photo {imgIndex + 1} of {images.length}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
+                  ))}
+                </div>
+              );
+            })()}
           </div>
         ))}
 

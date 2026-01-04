@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { ChevronLeft, ChevronRight, X, Heart, Settings } from 'lucide-react';
+import { ChevronLeft, ChevronRight, X, Heart, Settings, Maximize, Minimize } from 'lucide-react';
 import { getBlogPosts, type BlogPost } from '../api';
 import { Button } from '../ui/button';
 import { KidMessageModal } from '../KidMessageModal';
@@ -15,17 +15,18 @@ export function Design5Story({ onAdminClick, hasNewKidMessages, showAdminButton 
   const [posts, setPosts] = useState<BlogPost[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [selectedImageIndex, setSelectedImageIndex] = useState<number | null>(null);
-  const [imageError, setImageError] = useState(false);
+  const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
   const [imageScale, setImageScale] = useState(1);
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   const [touchStartDistance, setTouchStartDistance] = useState(0);
   const [touchStartScale, setTouchStartScale] = useState(1);
   const [showAlreadyLatest, setShowAlreadyLatest] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const postsRef = useRef<BlogPost[]>([]);
   const popupTimerRef = useRef<NodeJS.Timeout | null>(null);
   const [showKidModal, setShowKidModal] = useState(false);
 
-  // Cute rotating messages for "already latest" popup
+  // ... (cuteMessages array remains unchanged) ...
   const cuteMessages = [
     {
       emoji: '💝',
@@ -61,17 +62,20 @@ export function Design5Story({ onAdminClick, hasNewKidMessages, showAdminButton 
   const [currentMessage, setCurrentMessage] = useState(cuteMessages[0]);
 
   useEffect(() => {
-    loadData();
-    const interval = setInterval(loadData, 10000); // Auto-refresh every 10 seconds
+    loadData(false); // Initial load: show latest
+    const interval = setInterval(() => loadData(true), 10000); // Background refresh: keep position
     return () => clearInterval(interval);
   }, []);
 
-  async function loadData() {
+  async function loadData(keepPosition = false) {
     const blogPosts = await getBlogPosts();
     setPosts(blogPosts);
     postsRef.current = blogPosts;
-    // Always show the latest post (index 0)
-    setCurrentIndex(0);
+
+    // Only reset to latest if we're not keeping position
+    if (!keepPosition) {
+      setCurrentIndex(0);
+    }
   }
 
   // Keyboard navigation
@@ -88,20 +92,20 @@ export function Design5Story({ onAdminClick, hasNewKidMessages, showAdminButton 
   const goNext = () => {
     if (currentIndex < posts.length - 1) {
       setCurrentIndex(currentIndex + 1);
-      setImageError(false);
+      setFailedImages(new Set());
     }
   };
 
   const goPrev = () => {
     if (currentIndex > 0) {
       setCurrentIndex(currentIndex - 1);
-      setImageError(false);
+      setFailedImages(new Set());
     }
   };
 
   const goToNow = () => {
     setCurrentIndex(0);
-    setImageError(false);
+    setFailedImages(new Set());
   };
 
   const handleLatestRefresh = async () => {
@@ -128,9 +132,31 @@ export function Design5Story({ onAdminClick, hasNewKidMessages, showAdminButton 
     } else {
       // On older post - jump to latest
       setCurrentIndex(0);
-      setImageError(false);
+      setFailedImages(new Set());
+    }
+  }; // END handleLatestRefresh
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen();
+      setIsFullscreen(true);
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+        setIsFullscreen(false);
+      }
     }
   };
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const currentPost = posts[currentIndex];
+  // Scroll to top when post changes
+  useEffect(() => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTop = 0;
+    }
+  }, [currentPost?.id]);
 
   // Reset zoom when image changes
   useEffect(() => {
@@ -138,7 +164,6 @@ export function Design5Story({ onAdminClick, hasNewKidMessages, showAdminButton 
     setImagePosition({ x: 0, y: 0 });
   }, [selectedImageIndex]);
 
-  const currentPost = posts[currentIndex];
   const images = currentPost?.imageUrls || (currentPost?.imageUrl ? [currentPost.imageUrl] : []);
 
   // Format time in a kid-friendly way
@@ -162,7 +187,7 @@ export function Design5Story({ onAdminClick, hasNewKidMessages, showAdminButton 
   // Empty state - no posts yet
   if (posts.length === 0) {
     return (
-      <div className="h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-6 relative">
+      <div className="h-[100dvh] bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-6 relative">
         {showAdminButton && (
           <button
             onClick={onAdminClick}
@@ -187,7 +212,7 @@ export function Design5Story({ onAdminClick, hasNewKidMessages, showAdminButton 
   }
 
   return (
-    <div className="h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex flex-col overflow-hidden">
+    <div className="h-[100dvh] bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex flex-col overflow-hidden">
       {/* Top Section: Compact Header - Single line in landscape, stacked in portrait */}
       <div className="bg-white shadow-md flex-shrink-0">
         <div className="px-3 py-2 sm:px-4 sm:py-3">
@@ -228,6 +253,16 @@ export function Design5Story({ onAdminClick, hasNewKidMessages, showAdminButton 
                   <span className="text-sm">NOW</span>
                 </Button>
               )}
+
+              {/* Fullscreen Toggle */}
+              <button
+                onClick={toggleFullscreen}
+                className="bg-white text-slate-700 border border-slate-200 px-3 py-1 h-8 rounded-full shadow-sm flex items-center gap-1.5 hover:bg-slate-50 transition-colors"
+                aria-label={isFullscreen ? "Exit Fullscreen" : "Enter Fullscreen"}
+              >
+                {isFullscreen ? <Minimize className="w-3.5 h-3.5" /> : <Maximize className="w-3.5 h-3.5" />}
+              </button>
+
               {showAdminButton && (
                 <button
                   onClick={onAdminClick}
@@ -248,10 +283,13 @@ export function Design5Story({ onAdminClick, hasNewKidMessages, showAdminButton 
       </div>
 
       {/* Middle Section: Map/Message/Images - FILLS ENTIRE SPACE */}
-      <div className="flex-1 p-4 sm:p-6 overflow-y-auto">
-        <div className="h-full w-full bg-white rounded-2xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col">
+      <div
+        ref={scrollContainerRef}
+        className="flex-1 p-4 sm:p-6 overflow-y-auto"
+      >
+        <div className="w-full bg-white rounded-2xl sm:rounded-3xl shadow-2xl flex flex-col">
           {/* Map */}
-          <div className="relative h-48 sm:h-64 bg-slate-100 flex-shrink-0">
+          <div className="relative h-32 sm:h-48 bg-slate-100 flex-shrink-0 rounded-t-2xl sm:rounded-t-3xl overflow-hidden">
             {currentPost?.type === 'kid_post' ? (
               <img
                 src={homeImage}
@@ -287,7 +325,7 @@ export function Design5Story({ onAdminClick, hasNewKidMessages, showAdminButton 
 
           {/* Image Gallery */}
           {images.length > 0 && (
-            <div className="p-4 sm:p-6 bg-white flex-1 overflow-y-auto">
+            <div className="p-4 sm:p-6 bg-white flex-shrink-0">
               <div className="flex gap-3 overflow-x-auto pb-2">
                 {images.map((imgUrl, idx) => (
                   <button
@@ -295,12 +333,18 @@ export function Design5Story({ onAdminClick, hasNewKidMessages, showAdminButton 
                     onClick={() => setSelectedImageIndex(idx)}
                     className="flex-shrink-0 w-24 h-24 sm:w-32 sm:h-32 rounded-xl sm:rounded-2xl overflow-hidden bg-slate-200 hover:ring-4 hover:ring-blue-400 transition-all transform hover:scale-105"
                   >
-                    {!imageError ? (
+                    {!failedImages.has(idx) ? (
                       <img
                         src={imgUrl}
                         alt={`Photo ${idx + 1}`}
                         className="w-full h-full object-cover"
-                        onError={() => setImageError(true)}
+                        onError={() => {
+                          setFailedImages(prev => {
+                            const newSet = new Set(prev);
+                            newSet.add(idx);
+                            return newSet;
+                          });
+                        }}
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-3xl sm:text-4xl">
@@ -322,16 +366,16 @@ export function Design5Story({ onAdminClick, hasNewKidMessages, showAdminButton 
 
       {/* Bottom Section: Navigation - ALWAYS VISIBLE */}
       <div className="bg-white shadow-lg flex-shrink-0 safe-bottom">
-        <div className="px-3 py-3 sm:px-6 sm:py-4">
+        <div className="px-2 py-2 sm:px-4 sm:py-2">
           <div className="flex items-center justify-between gap-2 sm:gap-4">
             <Button
               onClick={goNext}
               disabled={currentIndex === posts.length - 1}
               size="lg"
-              className="flex-1 h-14 sm:h-16 text-base sm:text-xl disabled:opacity-30 min-w-0"
+              className="flex-1 h-10 sm:h-12 text-sm sm:text-lg disabled:opacity-30 min-w-0"
               variant="outline"
             >
-              <ChevronLeft className="w-6 h-6 sm:w-8 sm:h-8 mr-1 flex-shrink-0" />
+              <ChevronLeft className="w-5 h-5 sm:w-6 sm:h-6 mr-1 flex-shrink-0" />
               <span className="truncate">Older</span>
             </Button>
 
@@ -341,17 +385,17 @@ export function Design5Story({ onAdminClick, hasNewKidMessages, showAdminButton 
                   key={idx}
                   onClick={() => {
                     setCurrentIndex(idx);
-                    setImageError(false);
+                    setFailedImages(new Set());
                   }}
-                  className={`w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full transition-all ${idx === currentIndex
-                    ? 'bg-blue-600 w-6 sm:w-8'
+                  className={`w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full transition-all ${idx === currentIndex
+                    ? 'bg-blue-600 w-4 sm:w-6'
                     : 'bg-slate-300 hover:bg-slate-400'
                     }`}
                   aria-label={`Go to stop ${idx + 1}`}
                 />
               ))}
               {posts.length > 6 && (
-                <span className="text-slate-400 text-xs flex items-center">
+                <span className="text-slate-400 text-[10px] sm:text-xs flex items-center">
                   +{posts.length - 6}
                 </span>
               )}
@@ -361,11 +405,11 @@ export function Design5Story({ onAdminClick, hasNewKidMessages, showAdminButton 
               onClick={handleLatestRefresh}
               disabled={false}
               size="lg"
-              className="flex-1 h-14 sm:h-16 text-base sm:text-xl min-w-0"
+              className="flex-1 h-10 sm:h-12 text-sm sm:text-lg min-w-0"
               variant="outline"
             >
               <span className="truncate">{currentIndex === 0 ? 'Refresh' : 'Latest'}</span>
-              <ChevronRight className="w-6 h-6 sm:w-8 sm:h-8 ml-1 flex-shrink-0" />
+              <ChevronRight className="w-5 h-5 sm:w-6 sm:h-6 ml-1 flex-shrink-0" />
             </Button>
           </div>
         </div>
@@ -495,10 +539,10 @@ export function Design5Story({ onAdminClick, hasNewKidMessages, showAdminButton 
       {/* Floating Action Button - Send Dad a Message */}
       <button
         onClick={() => setShowKidModal(true)}
-        className="fixed bottom-24 right-6 sm:bottom-32 sm:right-8 w-16 h-16 sm:w-20 sm:h-20 bg-white border-4 border-pink-500 text-pink-500 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 hover:bg-pink-50 transition-transform z-40"
+        className="fixed bottom-16 right-4 sm:bottom-20 sm:right-6 w-14 h-14 sm:w-16 sm:h-16 bg-white border-4 border-pink-500 text-pink-500 rounded-full shadow-2xl flex items-center justify-center hover:scale-110 hover:bg-pink-50 transition-transform z-40"
         aria-label="Send Dad a message"
       >
-        <Heart className="w-8 h-8 sm:w-10 sm:h-10" fill="currentColor" />
+        <Heart className="w-7 h-7 sm:w-9 sm:h-9" fill="currentColor" />
       </button>
     </div>
   );

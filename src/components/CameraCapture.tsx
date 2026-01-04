@@ -103,9 +103,9 @@ export function CameraCapture({ onCapture, onCancel }: CameraCaptureProps) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-black">
+    <div className="flex flex-col h-full bg-black overflow-hidden">
       {/* Video/Image Display */}
-      <div className="flex-1 relative flex items-center justify-center">
+      <div className="h-[75%] relative flex items-center justify-center bg-black">
         {!capturedImage ? (
           <>
             <video

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { MapPin, Camera, Send, Loader2, TestTube, Calendar as CalendarIcon, Eye, Trash2, FileText, AlertTriangle, Lock } from 'lucide-react';
-import { updateLocation, createBlogPost, updateTripStop, getBlogPosts, type BlogPost } from './api';
+import { updateLocation, createBlogPost, updateTripStop, getBlogPosts, wipeAllPosts as apiWipeAllPosts, type BlogPost } from './api';
 import { allStops, tripStops } from './trip-data';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
@@ -23,7 +23,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
   const [postImage, setPostImage] = useState<File | null>(null);
   const [isUpdatingLocation, setIsUpdatingLocation] = useState(false);
   const [isPostingUpdate, setIsPostingUpdate] = useState(false);
-  
+
   // Test mode states
   const [testDate, setTestDate] = useState('');
   const [testTime, setTestTime] = useState('');
@@ -81,32 +81,22 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
     setIsPostingUpdate(true);
     try {
       // Create FormData with additional fields
-      const formData = new FormData();
-      formData.append('text', postText);
-      formData.append('location', stop.label);
-      formData.append('lat', stop.lat.toString());
-      formData.append('lng', stop.lng.toString());
-      formData.append('nextEvent', nextEvent);
-      
+      let imageToUpload = postImage;
       if (postImage) {
         setIsCompressing(true);
         toast.info('Compressing image...');
-        const compressedImage = await prepareImageForUpload(postImage);
-        formData.append('image', compressedImage);
+        imageToUpload = await prepareImageForUpload(postImage);
         setIsCompressing(false);
       }
 
-      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-cf1072ab/blog`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${publicAnonKey}`,
-        },
-        body: formData,
-      });
-      
-      if (!response.ok) {
-        throw new Error('Failed to post update');
-      }
+      await createBlogPost(
+        postText,
+        imageToUpload,
+        stop.label,
+        stop.lat,
+        stop.lng,
+        nextEvent
+      );
 
       toast.success('Update posted successfully!');
       setPostText('');
@@ -114,7 +104,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
       // Reset file input
       const fileInput = document.getElementById('imageInput') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
-      
+
       // Refresh posts list if visible
       if (showPosts) loadPosts();
     } catch (error) {
@@ -132,7 +122,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
     }
 
     const selectedDateTime = new Date(`${testDate}T${testTime}`);
-    
+
     // Find which stop you'd be at based on the date/time
     let foundStop = null;
     for (const stop of allStops) {
@@ -157,11 +147,11 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
     // Parse times like "8:00 AM CT" or "1:45 PM ET"
     const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
     if (!match) return null;
-    
+
     let hours = parseInt(match[1]);
     const minutes = parseInt(match[2]);
     const isPM = match[3].toUpperCase() === 'PM';
-    
+
     if (isPM && hours !== 12) hours += 12;
     if (!isPM && hours === 12) hours = 0;
 
@@ -186,7 +176,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
 
   const deletePost = async (postId: string) => {
     if (!confirm('Are you sure you want to delete this post?')) return;
-    
+
     try {
       // Note: We'd need to add a delete endpoint to the backend
       // For now, just show a message
@@ -199,22 +189,11 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
   const wipeAllPosts = async () => {
     setIsWiping(true);
     try {
-      const response = await fetch(`https://${projectId}.supabase.co/functions/v1/make-server-cf1072ab/blog/wipe`, {
-        method: 'DELETE',
-        headers: {
-          Authorization: `Bearer ${publicAnonKey}`,
-        },
-      });
-      
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to wipe posts');
-      }
+      const data = await apiWipeAllPosts();
 
       toast.success(`Successfully deleted ${data.deletedPosts} posts!`);
       setShowWipeModal(false);
-      
+
       // Refresh posts list if visible
       if (showPosts) {
         setAllPosts([]);
@@ -248,7 +227,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
   // If showing PDF export, render that instead
   if (showPDFExport) {
     return (
-      <TripPDFExport 
+      <TripPDFExport
         posts={pdfExportPosts}
         onClose={() => setShowPDFExport(false)}
       />
@@ -288,7 +267,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                 ))}
               </select>
             </div>
-            <Button 
+            <Button
               onClick={handleUpdateLocation}
               disabled={isUpdatingLocation || !selectedStop}
               className="w-full"
@@ -356,7 +335,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
               </p>
             </div>
 
-            <Button 
+            <Button
               onClick={handlePostUpdate}
               disabled={isPostingUpdate || !postText.trim() || !selectedStop}
               className="w-full"
@@ -423,7 +402,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                 />
               </div>
             </div>
-            <Button 
+            <Button
               onClick={simulateTripDate}
               disabled={!testDate || !testTime}
               className="w-full bg-purple-600 hover:bg-purple-700"
@@ -431,7 +410,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
               <CalendarIcon className="w-4 h-4 mr-2" />
               Simulate This Date/Time
             </Button>
-            
+
             {simulatedStop && (
               <div className="mt-4 p-4 bg-white rounded-lg border-2 border-purple-300">
                 <div className="flex items-start gap-3">
@@ -449,7 +428,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                     <p className="text-sm text-slate-600">
                       ⏰ Scheduled for {simulatedStop.time}
                     </p>
-                    
+
                     {/* Show next event */}
                     {(() => {
                       const currentIndex = allStops.indexOf(simulatedStop);
@@ -484,7 +463,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
           </CardHeader>
           <CardContent className="space-y-4">
             {!showPosts ? (
-              <Button 
+              <Button
                 onClick={loadPosts}
                 variant="outline"
                 className="w-full"
@@ -498,7 +477,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                   <p className="text-sm text-slate-600">
                     {allPosts.length} {allPosts.length === 1 ? 'post' : 'posts'} found
                   </p>
-                  <Button 
+                  <Button
                     onClick={() => setShowPosts(false)}
                     variant="ghost"
                     size="sm"
@@ -506,7 +485,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                     Hide
                   </Button>
                 </div>
-                
+
                 {allPosts.length > 0 ? (
                   <div className="space-y-3 max-h-96 overflow-y-auto">
                     {allPosts.map(post => (
@@ -527,9 +506,9 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                             )}
                             {post.imageUrl && (
                               <div className="mt-2">
-                                <img 
-                                  src={post.imageUrl} 
-                                  alt="Post" 
+                                <img
+                                  src={post.imageUrl}
+                                  alt="Post"
                                   className="w-32 h-32 object-cover rounded-lg"
                                 />
                               </div>
@@ -561,7 +540,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
             <p className="text-sm text-slate-700 mb-4">
               This will delete all posts from the blog. This action cannot be undone.
             </p>
-            <Button 
+            <Button
               onClick={() => setShowWipeModal(true)}
               variant="destructive"
               className="w-full"
@@ -569,7 +548,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
               <Trash2 className="w-4 h-4 mr-2" />
               Wipe All Posts
             </Button>
-            
+
             {showWipeModal && (
               <div className="mt-4 p-4 bg-white rounded-lg border-2 border-red-300">
                 <div className="flex items-start gap-3">
@@ -587,12 +566,12 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
                     <p className="text-sm text-slate-600">
                       This action cannot be undone.
                     </p>
-                    
+
                     {/* Show next event */}
                     <div className="mt-3 pt-3 border-t border-red-200">
                       <p className="text-xs text-red-600 mb-1">NEXT STEPS:</p>
                       <p className="text-sm text-slate-700">
-                        <Button 
+                        <Button
                           onClick={wipeAllPosts}
                           disabled={isWiping}
                           className="w-full bg-red-600 hover:bg-red-700"
@@ -630,7 +609,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
             <p className="text-sm text-slate-700 mb-4">
               Export all posts to a PDF file for offline viewing.
             </p>
-            <Button 
+            <Button
               onClick={exportToPDF}
               variant="outline"
               className="w-full"
@@ -653,7 +632,7 @@ export function AdminPanel({ onLogout }: AdminPanelProps) {
             <p className="text-sm text-slate-700 mb-4">
               Logout from the admin panel.
             </p>
-            <Button 
+            <Button
               onClick={onLogout}
               variant="destructive"
               className="w-full"

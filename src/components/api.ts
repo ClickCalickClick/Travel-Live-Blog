@@ -106,6 +106,7 @@ export async function getBlogPosts(): Promise<BlogPost[]> {
       headers: {
         Authorization: `Bearer ${publicAnonKey}`,
       },
+      cache: 'no-store',
     });
     const data = await response.json();
     return data.posts || [];
@@ -116,11 +117,22 @@ export async function getBlogPosts(): Promise<BlogPost[]> {
 }
 
 // Create blog post
-export async function createBlogPost(text: string, image: File | null, location: string): Promise<void> {
+export async function createBlogPost(
+  text: string,
+  image: File | null,
+  location: string,
+  lat?: number,
+  lng?: number,
+  nextEvent?: string
+): Promise<void> {
   try {
     const formData = new FormData();
     formData.append('text', text);
     formData.append('location', location);
+    if (lat) formData.append('lat', lat.toString());
+    if (lng) formData.append('lng', lng.toString());
+    if (nextEvent) formData.append('nextEvent', nextEvent);
+
     if (image) {
       formData.append('image', image);
     }
@@ -177,6 +189,30 @@ export async function updateTripStop(stopIndex: number, stopName: string): Promi
     }
   } catch (error) {
     console.error('Error updating trip stop:', error);
+    throw error;
+  }
+}
+
+// Wipe all posts
+export async function wipeAllPosts(): Promise<{ deletedPosts: number }> {
+  try {
+    const response = await fetch(`${API_BASE}/blog/wipe`, {
+      method: 'DELETE',
+      headers: {
+        Authorization: `Bearer ${publicAnonKey}`,
+        'x-admin-password': adminPassword
+      },
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to wipe posts');
+    }
+
+    return data;
+  } catch (error) {
+    console.error('Error wiping posts:', error);
     throw error;
   }
 }

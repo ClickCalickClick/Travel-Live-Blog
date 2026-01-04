@@ -26,7 +26,7 @@ export function KidMessageModal({ onClose, onMessageSent }: KidMessageModalProps
       const formData = new FormData();
       formData.append('type', 'kid_post');
       formData.append('contentType', type);
-      
+
       if (text) {
         formData.append('text', text);
       }
@@ -94,9 +94,9 @@ export function KidMessageModal({ onClose, onMessageSent }: KidMessageModalProps
   }
 
   return (
-    <div className="fixed inset-0 z-50 bg-white">
+    <div className="fixed inset-0 z-50 bg-white flex flex-col">
       {/* Header */}
-      <div className="bg-gradient-to-r from-green-500 to-yellow-500 text-white p-4 flex items-center justify-between shadow-lg">
+      <div className="bg-gradient-to-r from-green-500 to-yellow-500 text-white p-4 flex items-center justify-between shadow-lg flex-shrink-0">
         <h2 className="text-xl">Send Dad a Message! 💌</h2>
         <button
           onClick={onClose}
@@ -108,39 +108,41 @@ export function KidMessageModal({ onClose, onMessageSent }: KidMessageModalProps
       </div>
 
       {/* Content */}
-      <div className="h-[calc(100vh-72px)]">
+      <div className="flex-1 overflow-hidden relative">
         {mode === 'select' && (
-          <div className="flex flex-col items-center justify-center h-full p-6 gap-6">
+          <div className="flex flex-col h-full p-6 gap-6">
             <p className="text-xl text-center text-slate-700 mb-4">
               What do you want to send Dad?
             </p>
-            
-            <button
-              onClick={() => setMode('draw')}
-              className="w-full max-w-md bg-gradient-to-br from-purple-500 to-pink-500 text-white p-8 rounded-3xl shadow-2xl hover:scale-105 transition-transform"
-            >
-              <Pencil className="w-12 h-12 mx-auto mb-3" />
-              <p className="text-2xl mb-2">Draw a Picture</p>
-              <p className="text-sm opacity-90">Use your finger to draw!</p>
-            </button>
 
-            <button
-              onClick={() => setMode('camera')}
-              className="w-full max-w-md bg-gradient-to-br from-blue-500 to-cyan-500 text-white p-8 rounded-3xl shadow-2xl hover:scale-105 transition-transform"
-            >
-              <Camera className="w-12 h-12 mx-auto mb-3" />
-              <p className="text-2xl mb-2">Take a Photo</p>
-              <p className="text-sm opacity-90">Show Dad what you're doing!</p>
-            </button>
+            <div className="flex flex-row gap-4 items-stretch w-full max-w-5xl mx-auto h-[400px]">
+              <button
+                onClick={() => setMode('draw')}
+                className="flex-1 bg-gradient-to-br from-purple-500 to-pink-500 text-white p-6 rounded-3xl shadow-2xl hover:scale-105 transition-transform flex flex-col items-center justify-center"
+              >
+                <Pencil className="w-16 h-16 mb-4" />
+                <p className="text-2xl mb-2 font-bold">Draw a Picture</p>
+                <p className="text-sm opacity-90">Use your finger to draw!</p>
+              </button>
 
-            <button
-              onClick={() => setMode('text')}
-              className="w-full max-w-md bg-gradient-to-br from-green-500 to-emerald-500 text-white p-8 rounded-3xl shadow-2xl hover:scale-105 transition-transform"
-            >
-              <MessageSquare className="w-12 h-12 mx-auto mb-3" />
-              <p className="text-2xl mb-2">Write a Message</p>
-              <p className="text-sm opacity-90">Type something to Dad!</p>
-            </button>
+              <button
+                onClick={() => setMode('camera')}
+                className="flex-1 bg-gradient-to-br from-blue-500 to-cyan-500 text-white p-6 rounded-3xl shadow-2xl hover:scale-105 transition-transform flex flex-col items-center justify-center"
+              >
+                <Camera className="w-16 h-16 mb-4" />
+                <p className="text-2xl mb-2 font-bold">Take a Photo</p>
+                <p className="text-sm opacity-90">Show Dad what you're doing!</p>
+              </button>
+
+              <button
+                onClick={() => setMode('text')}
+                className="flex-1 bg-gradient-to-br from-green-500 to-emerald-500 text-white p-6 rounded-3xl shadow-2xl hover:scale-105 transition-transform flex flex-col items-center justify-center"
+              >
+                <MessageSquare className="w-16 h-16 mb-4" />
+                <p className="text-2xl mb-2 font-bold">Write a Message</p>
+                <p className="text-sm opacity-90">Type something to Dad!</p>
+              </button>
+            </div>
           </div>
         )}
 
@@ -166,7 +168,7 @@ export function KidMessageModal({ onClose, onMessageSent }: KidMessageModalProps
             >
               ← Back
             </button>
-            
+
             <div className="flex-1 flex flex-col gap-4">
               <label htmlFor="kidMessage" className="text-lg text-slate-700">
                 Your message to Dad:
